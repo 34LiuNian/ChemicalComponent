@@ -1,117 +1,252 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>合成路线 — ChemolRenderer Demo</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>"
-    />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>合成路线 — ChemolRenderer Demo</title>
+  <link rel="stylesheet" href="./lib/chemol-renderer.css" />
 
-    <!-- 1️⃣ 库样式 -->
-    <link rel="stylesheet" href="./lib/chemol-renderer.css" />
+  <style>
+    :root {
+      --font-chem: "Times New Roman", Times, "SimSun", serif;
+    }
+    html, body {
+      font-family: var(--font-chem);
+      margin: 20px;
+      background: #fff;
+    }
+    h2 { color: #044484; }
 
-    <style>
-      :root {
-        --font-chem: "Times New Roman", Times, "SimSun", serif;
-      }
-      html,
-      body {
-        font-family: var(--font-chem);
-        margin: 20px;
-        background: #fff;
-      }
-      .demo-questions {
-        margin-top: 50px;
-        font-size: 16px;
-        line-height: 2;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- 2️⃣ 仅需要一个空容器，结构由 JS 生成 -->
-    <div id="reaction-scheme"></div>
+    /* ── 工具栏 ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      background: #f5f7fa;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .toolbar label { cursor: pointer; user-select: none; }
+    .toolbar input[type="checkbox"] { margin-right: 4px; width: 16px; height: 16px; cursor: pointer; }
+    .badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-new { background: #d4edda; color: #155724; }
+    .badge-old { background: #fff3cd; color: #856404; }
 
-    <!-- 3️⃣ 库入口 -->
-    <script type="module">
-      import {
-        loadCustomRdkit,
-        renderReactionScheme,
-      } from "./lib/index.js";
+    /* ── 字体上传 ── */
+    .font-upload {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 1px solid #ddd;
+      padding-left: 14px;
+    }
+    .font-upload input[type="file"] { display: none; }
+    .font-upload label {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .font-upload label:hover { background: #e8ecf0; }
+    .font-name {
+      font-size: 12px;
+      color: #666;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-      // ----- 配置：使用自构建的 RDKit（含 MCS 支持）-----
-      await loadCustomRdkit("./lib/rdkit-custom/");
-      const FONT_FAMILY = "'Times New Roman',Times,'SimSun',serif";
+    /* ── 状态栏 ── */
+    #status {
+      font-family: monospace;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 16px;
+      line-height: 1.6;
+    }
 
-      // ----- 反应式数据（唯一的真相来源） -----
-      const STEPS = [
-        { type: "mol", id: "molA", smiles: "CCC1=CC(Cl)=CC=C1", label: "A" },
-        { type: "arrow", top: "Br<sub>2</sub>", bottom: "AIBN" },
-        {
-          type: "mol",
-          id: "molB",
-          smiles: "CC(Br)C1=CC(Cl)=CC=C1",
-          label: "B",
-        },
-        { type: "arrow", top: "Br<sub>2</sub>", bottom: "I<sub>2</sub>" },
-        {
-          type: "mol",
-          id: "molC",
-          smiles: "BrCC(Br)C1=CC(Cl)=CC=C1",
-          label: "C",
-        },
-        { type: "arrow", top: "NaHSO<sub>3</sub>, NaOH", bottom: "PTC" },
-        {
-          type: "mol",
-          id: "molD",
-          smiles: "C=C(Br)C1=CC(Cl)=CC=C1",
-          label: "D",
-        },
-        {
-          type: "arrow",
-          top: "1) Mg, CH<sub>2</sub>O, THF",
-          bottom: "2) H<sup>+</sup>",
-        },
-        {
-          type: "mol",
-          id: "molE",
-          smiles: "OCC(=C)C1=CC(Cl)=CC=C1",
-          label: "E",
-        },
-        { type: "arrow", top: "SOCl<sub>2</sub>", bottom: "DMF" },
-        {
-          type: "mol",
-          id: "molF",
-          smiles: "ClCC(=C)C1=CC(Cl)=CC=C1",
-          label: "F",
-        },
-        { type: "arrow", top: "X", bottom: "K<sub>2</sub>CO<sub>3</sub>" },
-        {
-          type: "mol",
-          id: "molG",
-          smiles: "CCC1(CC(=C)C2=CC(Cl)=CC=C2)C(=O)C3=CC=CC=C3C1=O",
-          label: "G",
-          large: true,
-        },
-        { type: "arrow", top: "AcOOH", bottom: "AcONa" },
-        {
-          type: "mol",
-          id: "molH",
-          smiles: "CCC1(CC2(CO2)C3=CC(Cl)=CC=C3)C(=O)C4=CC=CC=C4C1=O",
-          label: "H",
-          large: true,
-        },
+    #reaction-scheme { margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+<h2>🧪 合成路线渲染</h2>
+
+<div class="toolbar">
+  <label>
+    <input type="checkbox" id="toggleFontFile" checked />
+    <strong>fontFile（原生 C++ FreeType）</strong>
+    <span class="badge badge-new">新</span>
+  </label>
+  <span style="color:#999;font-size:12px">
+    ☑ = RDKit C++ 用 .ttf 渲染原子标签（无 JS 覆盖层）<br>
+    ☐ = 旧方案：JS overlayAtomLabels 用 &lt;text&gt; 覆盖
+  </span>
+
+  <span class="font-upload">
+    <label for="fontFileInput">📁 上传字体 .ttf</label>
+    <input type="file" id="fontFileInput" accept=".ttf" />
+    <span class="font-name" id="fontFileName"></span>
+  </span>
+</div>
+
+<div id="status">⏳ 加载中...</div>
+<div id="reaction-scheme"></div>
+
+<script src="./lib/rdkit-fs/RDKit_minimal.js"></script>
+<script type="module">
+  import {
+    loadCustomRdkit,
+    renderReactionScheme,
+  } from "./lib/index.js";
+
+  const STATUS = document.getElementById("status");
+  const TOGGLE = document.getElementById("toggleFontFile");
+
+  // ============================================================
+  // 1. 加载 FS 构建（FS API + MCS 支持）
+  // ============================================================
+  STATUS.textContent = "⏳ 初始化 RDKit (FS 构建)...";
+  const RDKit = await loadCustomRdkit("./lib/rdkit-fs/");
+  STATUS.innerHTML = `✅ RDKit <b>${RDKit.version()}</b> (FS 构建)`;
+
+  // ============================================================
+  // 2. 注入字体到 WASM 虚拟文件系统
+  // ============================================================
+  const FONT_VIRTUAL_PATH = "/fonts/times.ttf";
+  const FONT_FAMILY = "'Times New Roman',Times,'SimSun',serif";
+
+  let fontLoaded = false;
+  let fontName = '';           // 当前字体文件名（用于显示）
+  let fontPath = FONT_VIRTUAL_PATH;  // 当前字体在虚拟 FS 中的路径
+
+  const FS = RDKit.FS || window.FS;
+  if (!FS) {
+    STATUS.innerHTML += '<br>⚠️ FS API 不可用';
+  } else {
+    try {
+      FS.mkdir("/fonts");
+      STATUS.innerHTML += '<br>⏳ 获取 TTF 字体...';
+
+      const FONT_SOURCES = [
+        "https://cdn.jsdelivr.net/gh/ArtifexSoftware/urw-base35-fonts@master/fonts/NimbusRoman-Regular.ttf",
+        "https://github.com/ArtifexSoftware/urw-base35-fonts/raw/master/fonts/NimbusRoman-Regular.ttf",
       ];
+      let fontU8 = null;
+      for (const src of FONT_SOURCES) {
+        try {
+          const resp = await fetch(src);
+          if (resp.ok) { fontU8 = new Uint8Array(await resp.arrayBuffer()); break; }
+        } catch { /* next */ }
+      }
+      if (fontU8) {
+        FS.writeFile(fontPath, fontU8);
+        fontLoaded = true;
+        fontName = 'NimbusRoman-Regular.ttf (CDN)';
+        STATUS.innerHTML += ` ✅ ${fontPath} (${fontU8.length} bytes)`;
+      } else {
+        STATUS.innerHTML += ' ⚠️ 字体获取失败';
+      }
+    } catch (e) {
+      STATUS.innerHTML += ` ⚠️ ${e.message}`;
+    }
+  }
 
-      // ----- 启动（autoAlign 自动检测公共骨架） -----
-      // 自构建的 RDKit 支持 MCS，autoAlign 会自动计算
-      // 所有分子的最大公共子结构作为对齐骨架。
-      const scheme = await renderReactionScheme("#reaction-scheme", STEPS, {
-        fontFamily: FONT_FAMILY,
-        autoAlign: { rotateDeg: -30 },
-        resize: 500,
-      });
-    </script>
-  </body>
+  // ============================================================
+  // 2b. 上传自定义字体
+  // ============================================================
+  const FILE_INPUT = document.getElementById("fontFileInput");
+  const FILE_NAME  = document.getElementById("fontFileName");
+
+  FILE_INPUT.addEventListener("change", async () => {
+    const file = FILE_INPUT.files[0];
+    if (!file || !file.name.endsWith(".ttf")) return;
+
+    const buf = await file.arrayBuffer();
+    const u8  = new Uint8Array(buf);
+
+    try {
+      // 写入虚拟 FS（文件名自定义，避免路径冲突）
+      const customPath = `/fonts/${file.name}`;
+      FS.writeFile(customPath, u8);
+
+      // 更新全局字体路径
+      fontPath   = customPath;
+      fontName   = file.name;
+      fontLoaded = true;
+
+      FILE_NAME.textContent = file.name;
+      TOGGLE.checked = true;
+      STATUS.innerHTML += `<br>📁 已上传自定义字体: <b>${file.name}</b> (${u8.length} bytes) → ${customPath}`;
+
+      // 自动用新字体重渲染
+      await render();
+    } catch (e) {
+      STATUS.innerHTML += `<br>⚠️ 字体上传失败: ${e.message}`;
+    }
+  });
+
+  // ============================================================
+  // 3. 反应式数据
+  // ============================================================
+  const STEPS = [
+    { type: "mol", id: "molA", smiles: "CCC1=CC(Cl)=CC=C1", label: "A" },
+    { type: "arrow", top: "Br<sub>2</sub>", bottom: "AIBN" },
+    { type: "mol", id: "molB", smiles: "CC(Br)C1=CC(Cl)=CC=C1", label: "B" },
+    { type: "arrow", top: "Br<sub>2</sub>", bottom: "I<sub>2</sub>" },
+    { type: "mol", id: "molC", smiles: "BrCC(Br)C1=CC(Cl)=CC=C1", label: "C" },
+    { type: "arrow", top: "NaHSO<sub>3</sub>, NaOH", bottom: "PTC" },
+    { type: "mol", id: "molD", smiles: "C=C(Br)C1=CC(Cl)=CC=C1", label: "D" },
+    { type: "arrow", top: "1) Mg, CH<sub>2</sub>O, THF", bottom: "2) H<sup>+</sup>" },
+    { type: "mol", id: "molE", smiles: "OCC(=C)C1=CC(Cl)=CC=C1", label: "E" },
+    { type: "arrow", top: "SOCl<sub>2</sub>", bottom: "DMF" },
+    { type: "mol", id: "molF", smiles: "ClCC(=C)C1=CC(Cl)=CC=C1", label: "F" },
+    { type: "arrow", top: "X", bottom: "K<sub>2</sub>CO<sub>3</sub>" },
+    { type: "mol", id: "molG", smiles: "CCC1(CC(=C)C2=CC(Cl)=CC=C2)C(=O)C3=CC=CC=C3C1=O", label: "G", large: true },
+    { type: "arrow", top: "AcOOH", bottom: "AcONa" },
+    { type: "mol", id: "molH", smiles: "CCC1(CC2(CO2)C3=CC(Cl)=CC=C3)C(=O)C4=CC=CC=C4C1=O", label: "H", large: true },
+  ];
+
+  // ============================================================
+  // 4. 渲染（支持切换模式）
+  // ============================================================
+  let currentScheme = null;
+
+  async function render() {
+    const useFontFile = TOGGLE.checked && fontLoaded;
+    const mode = useFontFile ? 'fontFile (C++ FreeType)' : 'overlay (JS text)';
+    STATUS.innerHTML += `<br>⏳ 渲染 (${mode})...`;
+
+    if (currentScheme) currentScheme.dispose();
+
+    currentScheme = await renderReactionScheme("#reaction-scheme", STEPS, {
+      fontFamily: FONT_FAMILY,
+      autoAlign: { rotateDeg: -30 },
+      resize: 500,
+      fontFile: useFontFile ? fontPath : undefined,
+      disableOverlay: useFontFile,
+    });
+
+    STATUS.innerHTML += ` ✅ ${mode}`;
+  }
+
+  TOGGLE.addEventListener("change", render);
+  await render();
+</script>
+
+</body>
 </html>
