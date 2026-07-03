@@ -94,14 +94,6 @@
   justify-content: center;
 }
 
-/* ====== 原子标签覆盖层 ====== */
-.chemol-atom-label {
-  fill: #000;
-  stroke: none;
-  paint-order: fill;
-  pointer-events: none;
-}
-
 /* ====== 响应式 ====== */
 @media (max-width: 700px) {
   .chemol-mol-container { max-width: 150px; }

@@ -29,18 +29,6 @@
       border-radius: 6px;
       font-size: 13px;
     }
-    .toolbar label { cursor: pointer; user-select: none; }
-    .toolbar input[type="checkbox"] { margin-right: 4px; width: 16px; height: 16px; cursor: pointer; }
-    .badge {
-      display: inline-block;
-      padding: 1px 8px;
-      border-radius: 10px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .badge-new { background: #d4edda; color: #155724; }
-    .badge-old { background: #fff3cd; color: #856404; }
-
     /* ── 字体上传 ── */
     .font-upload {
       display: flex;
@@ -87,16 +75,7 @@
 <h2>🧪 合成路线渲染</h2>
 
 <div class="toolbar">
-  <label>
-    <input type="checkbox" id="toggleFontFile" checked />
-    <strong>fontFile（原生 C++ FreeType）</strong>
-    <span class="badge badge-new">新</span>
-  </label>
-  <span style="color:#999;font-size:12px">
-    ☑ = RDKit C++ 用 .ttf 渲染原子标签（无 JS 覆盖层）<br>
-    ☐ = 旧方案：JS overlayAtomLabels 用 &lt;text&gt; 覆盖
-  </span>
-
+  <span style="font-weight:600">fontFile（原生 C++ FreeType）</span>
   <span class="font-upload">
     <label for="fontFileInput">📁 上传字体 .ttf</label>
     <input type="file" id="fontFileInput" accept=".ttf" />
@@ -115,7 +94,6 @@
   } from "./lib/index.js";
 
   const STATUS = document.getElementById("status");
-  const TOGGLE = document.getElementById("toggleFontFile");
 
   // ============================================================
   // 1. 加载 FS 构建（FS API + MCS 支持）
@@ -190,7 +168,6 @@
       fontLoaded = true;
 
       FILE_NAME.textContent = file.name;
-      TOGGLE.checked = true;
       STATUS.innerHTML += `<br>📁 已上传自定义字体: <b>${file.name}</b> (${u8.length} bytes) → ${customPath}`;
 
       // 自动用新字体重渲染
@@ -222,14 +199,12 @@
   ];
 
   // ============================================================
-  // 4. 渲染（支持切换模式）
+  // 4. 渲染
   // ============================================================
   let currentScheme = null;
 
   async function render() {
-    const useFontFile = TOGGLE.checked && fontLoaded;
-    const mode = useFontFile ? 'fontFile (C++ FreeType)' : 'overlay (JS text)';
-    STATUS.innerHTML += `<br>⏳ 渲染 (${mode})...`;
+    STATUS.innerHTML += '<br>⏳ 渲染...';
 
     if (currentScheme) currentScheme.dispose();
 
@@ -237,14 +212,12 @@
       fontFamily: FONT_FAMILY,
       autoAlign: { rotateDeg: -30 },
       resize: 500,
-      fontFile: useFontFile ? fontPath : undefined,
-      disableOverlay: useFontFile,
+      fontFile: fontLoaded ? fontPath : undefined,
     });
 
-    STATUS.innerHTML += ` ✅ ${mode}`;
+    STATUS.innerHTML += ' ✅ fontFile (C++ FreeType)';
   }
 
-  TOGGLE.addEventListener("change", render);
   await render();
 </script>
 
