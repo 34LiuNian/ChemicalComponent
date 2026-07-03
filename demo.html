@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>合成路线 — ChemolRenderer Demo</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧪</text></svg>">
+
+  <!-- 1️⃣ 库样式 -->
+  <link rel="stylesheet" href="./lib/chemol-renderer.css">
+
+  <style>
+    :root {
+      --font-chem: "Times New Roman", Times, "SimSun", serif;
+    }
+    html, body {
+      font-family: var(--font-chem);
+      margin: 20px;
+      background: #fff;
+    }
+    .demo-questions {
+      margin-top: 50px;
+      font-size: 16px;
+      line-height: 2;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 2️⃣ 仅需要一个空容器，结构由 JS 生成 -->
+  <div id="reaction-scheme"></div>
+
+  <div class="demo-questions">
+    <div>（1）茚草酮中含氧官能团的名称为________________；B中碳原子的杂化类型为________________。</div>
+    <div>（2）E的一种同分异构体同时满足下列条件，写出该同分异构体的结构简式：________________。</div>
+  </div>
+
+  <!-- 3️⃣ 库入口 -->
+  <script type="module">
+    import {
+      setRdkitCdn,
+      CoordAligner,
+      renderReactionScheme,
+    } from './lib/index.js';
+
+    // ----- 配置 -----
+    setRdkitCdn('https://cdn.jsdelivr.net/npm/@rdkit/rdkit@2024.3.5-1.0.0/dist');
+    const FONT_FAMILY = "'Times New Roman',Times,'SimSun',serif";
+
+    // ----- 反应式数据（唯一的真相来源） -----
+    const STEPS = [
+      { type: 'mol', id: 'molA', smiles: 'CCC1=CC(Cl)=CC=C1',                   label: 'A' },
+      { type: 'arrow', top: 'Br<sub>2</sub>',                    bottom: 'AIBN' },
+      { type: 'mol', id: 'molB', smiles: 'CC(Br)C1=CC(Cl)=CC=C1',               label: 'B' },
+      { type: 'arrow', top: 'Br<sub>2</sub>',                    bottom: 'I<sub>2</sub>' },
+      { type: 'mol', id: 'molC', smiles: 'BrCC(Br)C1=CC(Cl)=CC=C1',             label: 'C' },
+      { type: 'arrow', top: 'NaHSO<sub>3</sub>, NaOH',          bottom: 'PTC' },
+      { type: 'mol', id: 'molD', smiles: 'C=C(Br)C1=CC(Cl)=CC=C1',              label: 'D' },
+      { type: 'arrow', top: '1) Mg, CH<sub>2</sub>O, THF',     bottom: '2) H<sup>+</sup>' },
+      { type: 'mol', id: 'molE', smiles: 'OCC(=C)C1=CC(Cl)=CC=C1',              label: 'E' },
+      { type: 'arrow', top: 'SOCl<sub>2</sub>',                 bottom: 'DMF' },
+      { type: 'mol', id: 'molF', smiles: 'ClCC(=C)C1=CC(Cl)=CC=C1',             label: 'F' },
+      { type: 'arrow', top: 'X',                                 bottom: 'K<sub>2</sub>CO<sub>3</sub>' },
+      { type: 'mol', id: 'molG', smiles: 'CCC1(CC(=C)C2=CC(Cl)=CC=C2)C(=O)C3=CC=CC=C3C1=O', label: 'G', large: true },
+      { type: 'arrow', top: 'AcOOH',                             bottom: 'AcONa' },
+      { type: 'mol', id: 'molH', smiles: 'CCC1(CC2(CO2)C3=CC(Cl)=CC=C3)C(=O)C4=CC=CC=C4C1=O', label: 'H', large: true },
+    ];
+
+    // ----- 启动 -----
+    const aligner = new CoordAligner({
+      templateSmiles: 'CC1=CC(Cl)=CC=C1',
+      rotateDeg: -30,
+    });
+
+    const scheme = await renderReactionScheme('#reaction-scheme', STEPS, {
+      fontFamily: FONT_FAMILY,
+      aligner,
+      resize: 500,
+    });
+
+    // 用完释放对齐器（模板分子 WASM 内存）
+    aligner.dispose();
+  </script>
+</body>
+</html>

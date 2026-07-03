@@ -1,0 +1,116 @@
+/**
+ * ChemolRenderer 默认样式。
+ * 提供反应式排版所需的基础 CSS（分子容器、箭头、错误占位等）。
+ *
+ * 使用方式：
+ *   <link rel="stylesheet" href="./lib/chemol-renderer.css">
+ *
+ * 所有 class 均以 chemol- 为前缀，避免与宿主页面冲突。
+ */
+
+/* ====== 基础 ====== */
+.chemol-reaction-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 20px 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.chemol-mol-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chemol-mol-container svg text,
+.chemol-mol-container svg tspan {
+  font-family: inherit;
+}
+
+.chemol-mol-container svg path {
+  stroke-width: 1;
+}
+
+.chemol-mol-label {
+  font-weight: bold;
+  font-size: 16px;
+  margin-top: 5px;
+}
+
+/* ====== 箭头 ====== */
+.chemol-arrow-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  margin: 0 4px;
+  min-width: 30px;
+  align-self: center;
+}
+
+.chemol-arrow-text {
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+.chemol-arrow-text.chemol-arrow-top    { margin-bottom: 2px; }
+.chemol-arrow-text.chemol-arrow-bottom { margin-top: 2px; }
+
+.chemol-arrow {
+  width: 100%;
+  height: 1px;
+  background-color: black;
+  position: relative;
+  margin: 2px 0;
+}
+.chemol-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -2.5px;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 6px solid black;
+}
+
+/* ====== 错误占位 ====== */
+.chemol-error {
+  color: #999;
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 20px;
+  min-width: 120px;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ====== 原子标签覆盖层 ====== */
+.chemol-atom-label {
+  fill: #000;
+  stroke: none;
+  paint-order: fill;
+  pointer-events: none;
+}
+
+/* ====== 响应式 ====== */
+@media (max-width: 700px) {
+  .chemol-mol-container { max-width: 150px; }
+  .chemol-mol-container.chemol-large { max-width: 180px; }
+  .chemol-arrow-text { font-size: 11px; }
+  .chemol-arrow-wrapper { margin: 0 2px; min-width: 20px; }
+  .chemol-reaction-row { gap: 10px 6px; }
+}
+@media (max-width: 500px) {
+  .chemol-mol-container { max-width: 110px; }
+  .chemol-mol-container.chemol-large { max-width: 140px; }
+  .chemol-arrow-text { font-size: 10px; }
+}
