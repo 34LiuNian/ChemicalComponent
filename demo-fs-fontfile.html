@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>合成路线 — FontFile API Demo (FS 构建)</title>
+  <link rel="stylesheet" href="./lib/chemol-renderer.css" />
+
+  <style>
+    :root {
+      --font-chem: "Times New Roman", Times, "SimSun", serif;
+    }
+    html, body {
+      font-family: var(--font-chem);
+      margin: 20px;
+      background: #fff;
+    }
+    h2 { color: #044484; }
+    .info-box {
+      background: #e8f4e8;
+      border-left: 4px solid #2a8;
+      padding: 12px 16px;
+      margin: 16px 0;
+      font-size: 14px;
+      border-radius: 4px;
+    }
+    .info-box code {
+      background: #d4edda;
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+    #status { font-family: monospace; font-size: 13px; }
+    #reaction-scheme { margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+<h2>🔤 FontFile API Demo — 原生 C++ 字体自定义</h2>
+
+<div class="info-box">
+  <strong>原理：</strong>
+  RDKit 的 <code>MolDraw2D</code> 支持 C++ <code>fontFile()</code> API，直接让 FreeType 用指定
+  <code>.ttf</code> 文件渲染原子标签。本 demo 使用 <strong>FS 构建</strong>（含
+  <code>-sFORCE_FILESYSTEM=1</code>）的 RDKit_minimal.js，通过 Emscripten 的
+  <code>FS.writeFile()</code> 将字体文件注入 WASM 虚拟文件系统，
+  然后在绘制选项中设置 <code>fontFile: "/fonts/myfont.ttf"</code>，
+  即可让 RDKit <strong>从路径渲染原生字体</strong>——不再需要 JS 侧的 SVG 覆盖层 hack。
+</div>
+
+<div id="status">⏳ 加载中...</div>
+
+<div id="reaction-scheme"></div>
+
+<script src="./lib/rdkit-fs/RDKit_minimal.js"></script>
+<script type="module">
+  import {
+    loadCustomRdkit,
+    renderReactionScheme,
+  } from "./lib/index.js";
+
+  const STATUS = document.getElementById("status");
+
+  // ============================================================
+  // 1. 加载 FS 构建的 RDKit（含 FS API 和 MCS 支持）
+  // ============================================================
+  STATUS.textContent = "⏳ 初始化 RDKit (FS 构建)...";
+
+  // 注意：FS 构建通过 injectScript 方式加载 RDKit_minimal.js，
+  // 入口函数仍然是 initRDKitModule。
+  // 我们把 basePath 设为 ./lib/rdkit-fs/ 以定位 .wasm
+  const RDKit = await loadCustomRdkit("./lib/rdkit-fs/");
+
+  STATUS.innerHTML = `✅ RDKit 已加载，版本: <b>${RDKit.version()}</b>`;
+
+  // ============================================================
+  // 2. 注入字体到 WASM 虚拟文件系统
+  //    FS.writeFile 来自 emscripten EXPORTED_RUNTIME_METHODS=["FS"]
+  // ============================================================
+  const FONT_VIRTUAL_PATH = "/fonts/times.ttf";
+  const FONT_OPTION_KEY = "fontFile";
+
+  // 检查 FS API 是否可用（emscripten modularized 构建中 FS 挂载在模块实例上）
+  const FS = RDKit.FS || window.FS;
+  if (!FS) {
+    STATUS.innerHTML += "<br>⚠️ <b>FS API 不可用！</b>请确认使用了含 -sFORCE_FILESYSTEM=1 的构建。";
+  } else {
+    try {
+      FS.mkdir("/fonts");
+      STATUS.innerHTML += "<br>⏳ 下载字体文件...";
+
+      // 多源回退：优先本地 → Google Fonts → 备用 CDN
+      const FONT_SOURCES = [
+        // 本地字体文件（放在同目录下）
+        "./lib/rdkit-fs/TimesNewRoman.ttf",
+        // Google Fonts 直接下载 TTF（有 CORS，file:// 不支持但在 http:// 下可用）
+        "https://github.com/ArtifexSoftware/urw-base35-fonts/raw/master/fonts/NimbusRoman-Regular.ttf",
+      ];
+
+      let fontU8 = null;
+      for (const src of FONT_SOURCES) {
+        try {
+          const resp = await fetch(src);
+          if (resp.ok) {
+            const buf = await resp.arrayBuffer();
+            fontU8 = new Uint8Array(buf);
+            STATUS.innerHTML += `<br>  ↳ 从 <code>${src}</code> 加载成功`;
+            break;
+          }
+        } catch (_) { /* 尝试下一个源 */ }
+      }
+
+      if (!fontU8) {
+        throw new Error("所有字体源均不可用。请将 .ttf 文件放到 ./lib/rdkit-fs/TimesNewRoman.ttf");
+      }
+
+      FS.writeFile(FONT_VIRTUAL_PATH, fontU8);
+      const stat = FS.stat(FONT_VIRTUAL_PATH);
+      STATUS.innerHTML += `<br>✅ 字体已加载到虚拟 FS: <code>${FONT_VIRTUAL_PATH}</code> (${stat.size} bytes)`;
+    } catch (e) {
+      STATUS.innerHTML += `<br>⚠️ 字体加载失败: ${e.message}<br>将回退到默认字体（fontFile 未生效）。`;
+    }
+  }
+
+  // ============================================================
+  // 3. 数据定义（与原 demo 一致）
+  // ============================================================
+  const FONT_FAMILY = "'Times New Roman',Times,'SimSun',serif";
+
+  const STEPS = [
+    { type: "mol", id: "molA", smiles: "CCC1=CC(Cl)=CC=C1", label: "A" },
+    { type: "arrow", top: "Br<sub>2</sub>", bottom: "AIBN" },
+    { type: "mol", id: "molB", smiles: "CC(Br)C1=CC(Cl)=CC=C1", label: "B" },
+    { type: "arrow", top: "Br<sub>2</sub>", bottom: "I<sub>2</sub>" },
+    { type: "mol", id: "molC", smiles: "BrCC(Br)C1=CC(Cl)=CC=C1", label: "C" },
+    { type: "arrow", top: "NaHSO<sub>3</sub>, NaOH", bottom: "PTC" },
+    { type: "mol", id: "molD", smiles: "C=C(Br)C1=CC(Cl)=CC=C1", label: "D" },
+    {
+      type: "arrow",
+      top: "1) Mg, CH<sub>2</sub>O, THF",
+      bottom: "2) H<sup>+</sup>",
+    },
+    { type: "mol", id: "molE", smiles: "OCC(=C)C1=CC(Cl)=CC=C1", label: "E" },
+    { type: "arrow", top: "SOCl<sub>2</sub>", bottom: "DMF" },
+    { type: "mol", id: "molF", smiles: "ClCC(=C)C1=CC(Cl)=CC=C1", label: "F" },
+    { type: "arrow", top: "X", bottom: "K<sub>2</sub>CO<sub>3</sub>" },
+    {
+      type: "mol",
+      id: "molG",
+      smiles: "CCC1(CC(=C)C2=CC(Cl)=CC=C2)C(=O)C3=CC=CC=C3C1=O",
+      label: "G",
+      large: true,
+    },
+    { type: "arrow", top: "AcOOH", bottom: "AcONa" },
+    {
+      type: "mol",
+      id: "molH",
+      smiles: "CCC1(CC2(CO2)C3=CC(Cl)=CC=C3)C(=O)C4=CC=CC=C4C1=O",
+      label: "H",
+      large: true,
+    },
+  ];
+
+  // ============================================================
+  // 4. 渲染 — fontFile + disableOverlay：完全由 RDKit C++ FreeType 处理字体
+  // ============================================================
+  STATUS.innerHTML += "<br>⏳ 渲染分子...";
+
+  const scheme = await renderReactionScheme("#reaction-scheme", STEPS, {
+    fontFamily: FONT_FAMILY,
+    autoAlign: { rotateDeg: -30 },
+    resize: 500,
+    // ★ fontFile → C++ MolDraw2D::drawOptions().fontFile 使用 WASM 虚拟 FS 中的字体
+    fontFile: FONT_VIRTUAL_PATH,
+    // ★ disableOverlay → 关闭 JS 侧原子标签覆盖，让原生 FreeType 字体效果完全可见
+    disableOverlay: true,
+  });
+
+  STATUS.innerHTML += "<br>✅ 渲染完成！";
+  console.log("FontFile demo 渲染完成", scheme);
+</script>
+
+</body>
+</html>
