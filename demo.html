@@ -58,6 +58,47 @@
       white-space: nowrap;
     }
 
+    /* ── 旋转控制 ── */
+    .rotate-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-left: 1px solid #ddd;
+      padding-left: 14px;
+    }
+    .rotate-controls label {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .rotate-controls input[type="range"] {
+      width: 130px;
+      cursor: pointer;
+      accent-color: #044484;
+      vertical-align: middle;
+    }
+    .rotate-controls .rot-val {
+      font-variant-numeric: tabular-nums;
+      min-width: 42px;
+      text-align: center;
+      font-weight: 600;
+      color: #044484;
+      font-size: 14px;
+    }
+    .rotate-controls .rot-reset {
+      width: 26px; height: 26px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .rotate-controls .rot-reset:hover { background: #e8ecf0; }
+
     /* ── 状态栏 ── */
     #status {
       font-family: monospace;
@@ -80,6 +121,12 @@
     <label for="fontFileInput">📁 上传字体 .ttf</label>
     <input type="file" id="fontFileInput" accept=".ttf" />
     <span class="font-name" id="fontFileName"></span>
+  </span>
+  <span class="rotate-controls">
+    <label>旋转</label>
+    <input type="range" id="rotSlider" min="-180" max="180" value="0" step="1" />
+    <span class="rot-val" id="rotDisplay">0°</span>
+    <button class="rot-reset" id="rotReset" title="重置旋转">↺</button>
   </span>
 </div>
 
@@ -180,37 +227,38 @@
   // ============================================================
   // 3. 反应式数据
   // ============================================================
-  const STEPS = [
-    { type: "mol", id: "molA", smiles: "CCC1=CC(Cl)=CC=C1", label: "A" },
-    { type: "arrow", top: "Br<sub>2</sub>", bottom: "AIBN" },
-    { type: "mol", id: "molB", smiles: "CC(Br)C1=CC(Cl)=CC=C1", label: "B" },
-    { type: "arrow", top: "Br<sub>2</sub>", bottom: "I<sub>2</sub>" },
-    { type: "mol", id: "molC", smiles: "BrCC(Br)C1=CC(Cl)=CC=C1", label: "C" },
-    { type: "arrow", top: "NaHSO<sub>3</sub>, NaOH", bottom: "PTC" },
-    { type: "mol", id: "molD", smiles: "C=C(Br)C1=CC(Cl)=CC=C1", label: "D" },
-    { type: "arrow", top: "1) Mg, CH<sub>2</sub>O, THF", bottom: "2) H<sup>+</sup>" },
-    { type: "mol", id: "molE", smiles: "OCC(=C)C1=CC(Cl)=CC=C1", label: "E" },
-    { type: "arrow", top: "SOCl<sub>2</sub>", bottom: "DMF" },
-    { type: "mol", id: "molF", smiles: "ClCC(=C)C1=CC(Cl)=CC=C1", label: "F" },
-    { type: "arrow", top: "X", bottom: "K<sub>2</sub>CO<sub>3</sub>" },
-    { type: "mol", id: "molG", smiles: "CCC1(CC(=C)C2=CC(Cl)=CC=C2)C(=O)C3=CC=CC=C3C1=O", label: "G", large: true },
-    { type: "arrow", top: "AcOOH", bottom: "AcONa" },
-    { type: "mol", id: "molH", smiles: "CCC1(CC2(CO2)C3=CC(Cl)=CC=C3)C(=O)C4=CC=CC=C4C1=O", label: "H", large: true },
+const STEPS = [
+    { type: "mol", id: "molA", smiles: "COC1=C(OC)C=C(C(=O)OC)C(N)=C1", label: "A" },
+    { type: "arrow", top: "HCONH<sub>2</sub>, HCOONH<sub>4</sub>", bottom: "" },
+    { type: "mol", id: "molB", smiles: "COC1=CC2=C(C=C1OC)C(=O)NC=N2", label: "B" },
+    { type: "arrow", top: "H<sub>3</sub>C-SO<sub>3</sub>H", bottom: "" },
+    { type: "mol", id: "molC", smiles: "COC1=CC2=C(C=C1O)C(=O)NC=N2", label: "C" },
+    { type: "arrow", top: "(CH<sub>3</sub>CO)<sub>2</sub>O", bottom: "" },
+    { type: "mol", id: "molD", smiles: "CC(=O)OC1=CC2=C(C=C1OC)C(=O)NC=N2", label: "D" },
+    { type: "arrow", top: "", bottom: "" },
+    { type: "mol", id: "molE", smiles: "CC(=O)OC1=CC2=C(C=C1OC)C(Cl)=NC=N2", label: "E" },
+    { type: "arrow", top: "3-Chloro-4-fluoroaniline", bottom: "" },
+    { type: "mol", id: "molF", smiles: "CC(=O)OC1=CC2=C(C=C1OC)C(NC3=CC(Cl)=C(F)C=C3)=NC=N2", label: "F", large: true },
+    { type: "arrow", top: "NH<sub>3</sub> &middot; H<sub>2</sub>O", bottom: "MeOH" },
+    { type: "mol", id: "molG", smiles: "COC1=CC2=C(C=C1O)C(NC3=CC(Cl)=C(F)C=C3)=NC=N2", label: "G", large: true },
   ];
 
   // ============================================================
   // 4. 渲染
   // ============================================================
   let currentScheme = null;
+  let rotationAngle = 0;   // 当前旋转角度（度）
 
   async function render() {
     STATUS.innerHTML += '<br>⏳ 渲染...';
 
     if (currentScheme) currentScheme.dispose();
 
+    // 用 rotateDeg 替代原来的 autoAlign: { rotateDeg: -30 }
     currentScheme = await renderReactionScheme("#reaction-scheme", STEPS, {
       fontFamily: FONT_FAMILY,
-      autoAlign: { rotateDeg: -30 },
+      autoAlign: true,
+      rotateDeg: rotationAngle,
       resize: 500,
       fontFile: fontLoaded ? fontPath : undefined,
     });
@@ -219,6 +267,33 @@
   }
 
   await render();
+
+  // ── 旋转滑块联动 ──
+  const ROT_SLIDER = document.getElementById("rotSlider");
+  const ROT_DISPLAY = document.getElementById("rotDisplay");
+  const ROT_RESET  = document.getElementById("rotReset");
+
+  ROT_SLIDER.addEventListener("input", () => {
+    rotationAngle = parseFloat(ROT_SLIDER.value);
+    ROT_DISPLAY.textContent = `${rotationAngle}°`;
+  });
+
+  // 鼠标松开 / 触摸结束时触发重渲染（避免拖拽过程中频繁重渲染）
+  let rotTimer = null;
+  function scheduleRotateRender() {
+    clearTimeout(rotTimer);
+    rotTimer = setTimeout(() => render(), 80);
+  }
+  ROT_SLIDER.addEventListener("change", scheduleRotateRender);
+  ROT_SLIDER.addEventListener("mouseup", scheduleRotateRender);
+  ROT_SLIDER.addEventListener("touchend", scheduleRotateRender);
+
+  ROT_RESET.addEventListener("click", () => {
+    rotationAngle = 0;
+    ROT_SLIDER.value = 0;
+    ROT_DISPLAY.textContent = "0°";
+    render();
+  });
 </script>
 
 </body>
